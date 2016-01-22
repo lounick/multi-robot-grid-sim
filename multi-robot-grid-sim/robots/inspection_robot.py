@@ -33,6 +33,8 @@ from __future__ import division
 
 
 class InspectionRobot:
+    states = {'wait': 0, 'navigate_target': 1, 'inspect': 2, 'navigate_extraction': 3}
+
     def __init__(self, init_x, init_y, max_vel=None, pos_var=None, insp_dur=None, insp_var=None):
         self.pos_x = init_x
         self.pos_y = init_y
@@ -53,7 +55,16 @@ class InspectionRobot:
             insp_var = 0
         self.insp_var = insp_var
 
+        self.state = self.states['wait']
+
     def move(self, coord_x, coord_y):
+        """
+        Move from your current position to the next position given by coordinates x and y. If it is further than your
+        maximum velocity just move as far as you can
+        :param coord_x:
+        :param coord_y:
+        :return:
+        """
         if abs(self.pos_x-coord_x) < self.max_vel:
             self.pos_x = coord_x
             if abs(self.pos_y-coord_y) < self.max_vel:
@@ -66,3 +77,11 @@ class InspectionRobot:
                 self.pos_y = coord_y
             else:
                 self.pos_y += self.max_vel
+
+    def loop(self, world_time):
+        """
+        Get current state and decide what is your next step
+        :param world_time:
+        :return:
+        """
+        pass
