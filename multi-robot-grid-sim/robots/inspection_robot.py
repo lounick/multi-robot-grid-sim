@@ -33,7 +33,7 @@ from __future__ import division
 
 
 class InspectionRobot:
-    states = {'wait': 0, 'navigate_target': 1, 'inspect': 2, 'navigate_extraction': 3}
+    states = {'wait': 0, 'navigate_target': 1, 'inspect': 2, 'navigate_extraction': 3, 'wait_extraction': 4}
 
     def __init__(self, init_x, init_y, max_vel=None, pos_var=None, insp_dur=None, insp_var=None):
         self.pos_x = init_x
@@ -80,8 +80,19 @@ class InspectionRobot:
 
     def loop(self, world_time):
         """
-        Get current state and decide what is your next step
+        Get current state and decide what is your next step.
         :param world_time:
         :return:
         """
-        pass
+        if self.state == self.states['wait']:
+            pass
+        elif self.state == self.states['navigate_target']:
+            pass
+        elif self.state == self.state['inspect']:
+            pass
+        elif self.state == self.state['navigate_extraction']:
+            pass
+        elif self.state == self.states['wait_extraction']:
+            pass
+        else:
+            print("Error we shouldn't be here!!!")
