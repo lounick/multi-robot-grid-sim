@@ -10,6 +10,8 @@ class AstarApp(QtGui.QMainWindow, astar_gui.Ui_MainWindow):
         self.setupUi(self)
         self.start = None
         self.end = None
+        self.tblMap.verticalScrollBar().setDisabled(True)
+        self.tblMap.horizontalScrollBar().setDisabled(True)
         self.bttnGenerateGrid.pressed.connect(self.handleGeneratePressed)
 
     def handleGeneratePressed(self):

@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file './UI/astar.ui'
 #
-# Created: Mon Jan 25 15:04:20 2016
+# Created: Wed Jan 27 14:46:10 2016
 #      by: PyQt4 UI code generator 4.10.4
 #
 # WARNING! All changes made in this file will be lost!
@@ -36,6 +36,8 @@ class Ui_MainWindow(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.tblMap.sizePolicy().hasHeightForWidth())
         self.tblMap.setSizePolicy(sizePolicy)
+        self.tblMap.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.tblMap.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.tblMap.setObjectName(_fromUtf8("tblMap"))
         self.tblMap.setColumnCount(0)
         self.tblMap.setRowCount(0)
@@ -90,8 +92,8 @@ class Ui_MainWindow(object):
         self.worldSize_spinbox = QtGui.QSpinBox(self.verticalLayoutWidget_2)
         self.worldSize_spinbox.setMinimum(2)
         self.worldSize_spinbox.setMaximum(100)
-        self.worldSize_spinbox.setSingleStep(2)
-        self.worldSize_spinbox.setProperty("value", 4)
+        self.worldSize_spinbox.setSingleStep(1)
+        self.worldSize_spinbox.setProperty("value", 2)
         self.worldSize_spinbox.setObjectName(_fromUtf8("worldSize_spinbox"))
         self.horizontalLayout_6.addWidget(self.worldSize_spinbox)
         self.bttnGenerateGrid = QtGui.QPushButton(self.verticalLayoutWidget_2)
@@ -137,7 +139,7 @@ class Ui_MainWindow(object):
         self.mainControls_vLayout.addLayout(self.horizontalLayout_9)
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtGui.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 800, 31))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 800, 27))
         self.menubar.setObjectName(_fromUtf8("menubar"))
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QtGui.QStatusBar(MainWindow)
