@@ -36,10 +36,7 @@ import numpy as np
 from utils.square_grid import *
 from utils.grid_with_weights import GridWithWeights
 from utils.priority_queue import PriorityQueue
-
-
-def getEucledianDistance(a, b):
-    return np.sqrt((a[0]-b[0])**2+(a[1]-b[1])**2)
+from utils.utilities import getEucledianDistance
 
 
 def astar(map, start, goal, eight_way=None):
