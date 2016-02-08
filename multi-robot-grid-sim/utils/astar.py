@@ -31,7 +31,7 @@
 
 # Implementation is from http://www.redblobgames.com/pathfinding/a-star/implementation.html
 
-from __future__ import division
+from __future__ import division, print_function
 import numpy as np
 from utils.square_grid import *
 from utils.grid_with_weights import GridWithWeights

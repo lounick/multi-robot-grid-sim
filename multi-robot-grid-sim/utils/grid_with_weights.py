@@ -3,7 +3,7 @@ from utils.square_grid import *
 
 class GridWithWeights(object, SquareGrid):
     def __init__(self, height, width):
-        SquareGrid.__init__(height, width)
+        SquareGrid.__init__(self, height, width)
         self.weights = {}
 
     def cost(self, from_node, to_node):
