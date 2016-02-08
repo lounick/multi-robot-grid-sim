@@ -30,8 +30,11 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from __future__ import division
+from __future__ import print_function
 
 import numpy as np
+import copy
+from collections import OrderedDict
 import math
 from utils.priority_queue import PriorityQueue
 from utils.utilities import getEucledianDistance
@@ -42,10 +45,9 @@ from utils.grid_with_weights import GridWithWeights
 
 
 class InspectionRobot:
-
-    def __init__(self, init_x, init_y, max_vel=None, pos_var=None, insp_dur=None, insp_var=None, world_map=None):
-        self.pos_x = init_x
-        self.pos_y = init_y
+    def __init__(self, init_pos, max_vel=None, pos_var=None, insp_dur=None, insp_var=None, world_map=None,
+                 max_time=None, max_energy=None, ex_point=None):
+        self.pos = copy.deepcopy(init_pos)
 
         if max_vel is None:
             max_vel = 1
@@ -67,20 +69,40 @@ class InspectionRobot:
             self.world_map = None
         self.world_map = world_map
 
+        if max_time is None:
+            max_time = float("inf")
+        self.max_time = max_time
+
+        if max_energy is None:
+            max_energy = float("inf")
+        self.max_energy = max_energy
+
+        if ex_point is None:
+            ex_point = init_pos
+        self.ex_point = ex_point
+
         self.state = 'wait'
 
         self.action_start = 0
         self.expected_timeout = 0
-        self.init_pos = (0, 0)
+        self.init_pos = init_pos
         self.targets_length = 0
 
         self.states = {'wait': self.state_wait, 'navigate_target': self.state_navigate_target,
                        'inspect': self.state_inspect, 'navigate_extraction': self.state_navigate_extraction,
                        'wait_extraction': self.state_wait_extraction}
-        self.targets = []
-        self.curr_target = None
+
+        self.targets = OrderedDict()
+        self.curr_target_uid = None
         self.world_time = 0
         self.schedule = None
+        self.schedule_uids = None
+        self.inspecting = False
+        self.distance_map = OrderedDict()
+        self.classified_targets = set()
+        self.unclassified_targets = set()
+        self.target_pos = None
+        self.action_init_pos = None
 
 
 
@@ -92,36 +114,73 @@ class InspectionRobot:
         :param coord_y:
         :return:
         """
-        if abs(self.pos_x-coord_x) < self.max_vel:
-            self.pos_x = coord_x
-            if abs(self.pos_y-coord_y) < self.max_vel:
-                self.pos_y = coord_y
+        if abs(self.pos[0] - coord_x) < self.max_vel:
+            self.pos[0] = coord_x
+            if abs(self.pos[1] - coord_y) < self.max_vel:
+                self.pos[1] = coord_y
             else:
-                self.pos_y += self.max_vel
+                self.pos[1] += self.max_vel
         else:
-            self.pos_x += self.max_vel
-            if abs(self.pos_y-coord_y) < self.max_vel:
-                self.pos_y = coord_y
+            self.pos[0] += self.max_vel
+            if abs(self.pos[1] - coord_y) < self.max_vel:
+                self.pos[1] = coord_y
             else:
-                self.pos_y += self.max_vel
+                self.pos[1] += self.max_vel
 
     def update_position(self, time):
-        self.pos_x = np.interp(time, [self.action_start, self.expected_timeout], [self.init_pos[0], self.curr_target.pos[0]])
-        self.pos_y = np.interp(time, [self.action_start, self.expected_timeout], [self.init_pos[1], self.curr_target.pos[1]])
+        self.pos[0] = np.interp(time, [self.action_start, self.expected_timeout],
+                                [self.action_init_pos[0], self.target_pos[0]])
+        self.pos[1] = np.interp(time, [self.action_start, self.expected_timeout],
+                                [self.action_init_pos[1], self.target_pos[1]])
+
+    def insert_target(self, target):
+        # Calculate new costs
+        self.targets[target.id] = target
+        self.unclassified_targets.add(target.id)
+        distances = OrderedDict()
+        if self.world_map is None:
+            for k,v in self.distance_map.items():
+                dist = getEucledianDistance(target.pos, self.targets[k].pos)
+                v[target.id] = dist
+                distances[k] = dist
+            distances[target.id] = 0
+            self.distance_map[target.id] = distances
+        else:
+            # Use A*
+            pass
+
+        self.do_reschedule()
 
     def do_reschedule(self):
-        self.targets_length = len(self.targets)
-        if self.world_map is None: # There is no map, assume empty world.
-            positions = []
-            positions.append([self.pos_x, self.pos_y])
-            for t in self.targets:
-                positions.append(t.pos)
-            positions = np.array(positions)
-            cost = tsu.calculate_distances(positions)
-            self.schedule, objective, _ = tsu.solve_problem(tsp_solver, cost)
-        else:
-            pass
-        
+        self.targets_length = len(self.unclassified_targets)
+        if self.targets_length > 1:
+            if self.world_map is None:  # There is no map, assume empty world.
+                positions = []
+                target_uids = []
+                self.schedule_uids = []
+                positions.append([self.pos[0], self.pos[1]])
+                for uid in self.unclassified_targets: #TODO: Make use of the distance map.
+                    target_uids.append(uid)
+                    positions.append(self.targets[uid].pos)
+                positions = np.array(positions)
+                cost = tsu.calculate_distances(positions)
+                self.schedule, objective, _ = tsu.solve_problem(tsp_solver, cost)
+                self.schedule.pop(0)
+                self.schedule.pop(len(self.schedule)-1)
+                for i in range(len(self.schedule)):
+                    self.schedule[i] -= 1
+                    self.schedule_uids.append(target_uids[self.schedule[i]])
+                print(self.schedule)
+                print(self.schedule_uids)
+            else:
+                pass
+        elif self.targets_length == 1:
+            self.schedule = [0]
+            self.schedule_uids = []
+            for uid in self.unclassified_targets:
+                self.schedule_uids.append(uid)
+            print(self.schedule)
+            print(self.schedule_uids)
 
     def state_wait(self, **kwargs):
         """
@@ -129,16 +188,32 @@ class InspectionRobot:
         2. If there are changes make a new visiting schedule.
         3. If there are targets choose the next one in the schedule and go to inspect.
         """
-        if self.targets_length != len(self.targets):
+        if self.targets_length != len(self.unclassified_targets):
             self.do_reschedule()
 
-        if len(self.targets) > 0:
-            self.curr_target = self.targets[0]
-            self.targets.pop(0)
-            self.action_start = self.world_time
-            self.init_pos = (self.pos_x, self.pos_y)
-            self.expected_timeout = getEucledianDistance(self.init_pos, self.curr_target.pos) / self.max_vel
-            self.state = 'navigate_target'
+        # TODO: should implement a function that returns the time to reach a wp to have a more generic approach.
+        # TODO: Implement energy constraints as well.
+        self.action_start = self.world_time
+        self.action_init_pos = copy.deepcopy(self.pos)
+
+        if len(self.targets) > 0 and len(self.schedule_uids) > 0:
+            # If there is time to navigate and inspect start the navigation. Else go to extraction.
+            self.curr_target_uid = self.schedule_uids[0]
+            self.target_pos = self.targets[self.curr_target_uid].pos
+            self.expected_timeout = self.action_start + getEucledianDistance(self.pos, self.target_pos) / self.max_vel
+            if self.expected_timeout + getEucledianDistance(self.ex_point, self.target_pos) / self.max_vel + self.insp_dur <= self.max_time:
+                self.state = 'navigate_target'
+            else:
+                print("Going to extraction")
+                self.target_pos = self.ex_point
+                self.expected_timeout = self.action_start + getEucledianDistance(self.pos, self.ex_point) / self.max_vel
+                self.state = 'navigate_extraction'
+        else:
+            self.expected_timeout = self.action_start + getEucledianDistance(self.pos, self.ex_point) / self.max_vel
+            if self.expected_timeout >= self.max_time:
+                print("Going to extraction")
+                self.target_pos = self.ex_point
+                self.state = 'navigate_extraction'
 
     def state_navigate_target(self, **kwargs):
         """
@@ -146,23 +221,44 @@ class InspectionRobot:
         2. Go from waypoint to waypoint.
         3. If you reach your goal change state.
         """
-        if self.curr_target is not None:
-            self.update_position(self.world_time)
-            if self.world_time > self.expected_timeout:
-                self.curr_target = None
+        if self.curr_target_uid is not None:
+            if self.curr_target_uid == self.schedule_uids[0]:
+                self.update_position(self.world_time)
+                if self.world_time >= self.expected_timeout:
+                    self.state = 'inspect'
+            else:
+                self.update_position(self.world_time)
                 self.state = 'wait'
+        else:
+            # Should not be here. Just go to wait.
+            self.update_position(self.world_time)
+            self.state = 'wait'
 
     def state_inspect(self, **kwargs):
         """
         Just waist time here. And produce some result.
         """
-        pass
+        if not self.inspecting:
+            self.inspecting = True
+            self.expected_timeout = self.world_time + self.insp_dur
+        else:
+            if self.world_time >= self.expected_timeout:
+                self.inspecting = False
+                self.targets[self.curr_target_uid].classification = "Mine"
+                # self.target_uids.pop(0)
+                self.schedule_uids.pop(0)
+                self.unclassified_targets.remove(self.curr_target_uid)
+                self.classified_targets.add(self.curr_target_uid)
+                self.curr_target_uid = None
+                self.state = 'wait'
 
     def state_navigate_extraction(self, **kwargs):
         """
         If we exceed our time or energy limit we go to the extraction point.
         """
-        pass
+        self.update_position(self.world_time)
+        if self.world_time >= self.expected_timeout:
+            self.state = 'wait_extraction'
 
     def state_wait_extraction(self, **kwargs):
         """
@@ -181,22 +277,41 @@ class InspectionRobot:
 
 
 def main():
-    timestep = 0.5 #Timestep in seconds
-    max_time = 25 #Maximum simulation time in seconds
+    timestep = 0.01  # Timestep in seconds
+    max_time = 100  # Maximum simulation time in seconds
     time = 0
 
     vehicles = []
 
-    iv = InspectionRobot(0, 0, 0.5)
-    iv.targets.append(Target("U0001",(10,0)))
+    iv = InspectionRobot([0, 0], max_vel=0.5, insp_dur=10, max_time=60)
+    iv.insert_target(Target("U0001", (10, 0)))
+    iv.insert_target(Target("U0002", (0, 10)))
     vehicles.append(iv)
 
-    while(time < max_time):
-        print(time, end=" ")
+    inserted = False
+
+    count = 0
+    do_print = False
+    while (time < max_time):
+        if count%100 == 0:
+            do_print = True
+        if do_print:
+            print(time, end=' ')
+        if time > 20 and not inserted:
+            inserted = True
+            vehicles[0].insert_target(Target("U0003", (10, 10)))
         for v in vehicles:
             v.loop(time)
-            print(v.pos_x, v.pos_y)
+            if do_print:
+                print(v.pos[0], v.pos[1],end='')
+
+        if do_print:
+            print()
         time += timestep
+        count += 1
+        do_print = False
+
+
 
 if __name__ == '__main__':
     main()
