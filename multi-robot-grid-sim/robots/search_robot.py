@@ -147,13 +147,15 @@ class SearchRobot:
             self.update_position(self.world_time)
             self.state = 'wait'
 
-
     def state_navigate_extraction(self, **kwargs):
         """
         If you have reached your goal go to wait state.
         Else just update your position.
         """
-        pass
+        self.update_position(self.world_time)
+        if self.world_time >= self.expected_timeout:
+            self.next_wp = None
+            self.state = 'wait_extraction'
 
     def state_wait_extraction(self, **kwargs):
         """
